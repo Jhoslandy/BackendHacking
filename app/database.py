@@ -1,9 +1,17 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# URL de conexión a PostgreSQL
-# Formato: postgresql://usuario:contraseña@localhost:5432/nombre_bd
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:123456@localhost:5432/bd_web"
+# Cargamos las variables del archivo .env al entorno de Python
+load_dotenv()
+
+# Obtenemos la URL de la base de datos de las variables de entorno
+# Si no la encuentra, podemos poner un valor por defecto o dejar que falle
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not SQLALCHEMY_DATABASE_URL:
+    raise ValueError("¡La variable DATABASE_URL no está configurada en el archivo .env!")
 
 # Crear el motor de la base de datos
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
