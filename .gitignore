@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# Entorno virtual
+venv/
+env/
+.env
+.venv
+
+# Base de datos
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
