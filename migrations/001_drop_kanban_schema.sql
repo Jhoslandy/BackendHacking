@@ -2,5 +2,7 @@ DROP TABLE IF EXISTS usuario_tarea;
 DROP TABLE IF EXISTS tareas;
 DROP TABLE IF EXISTS columnas;
 DROP TABLE IF EXISTS tableros;
+DROP TABLE IF EXISTS proyecto_miembros;
+DROP TABLE IF EXISTS proyectos;
 DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS roles;

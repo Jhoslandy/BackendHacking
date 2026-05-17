@@ -10,31 +10,24 @@ class RolResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UsuarioBase(BaseModel):
+class UsuarioCreate(BaseModel):
     nombre: str
     email: EmailStr
-    rol_id: int | None = None
-
-
-class UsuarioCreate(UsuarioBase):
     password: str
 
 
-class UsuarioResponse(UsuarioBase):
+class UsuarioResponse(BaseModel):
     id: int
+    nombre: str
+    email: EmailStr
+    rol_id: int
     creado_en: datetime
+    rol: RolResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class UsuarioExpuesto(UsuarioResponse):
-    password_hash: str
-    rol: RolResponse | None = None
 
 
 class UsuarioUpdate(BaseModel):
     nombre: str | None = None
     email: EmailStr | None = None
     password: str | None = None
-    password_hash: str | None = None
-    rol_id: int | None = None

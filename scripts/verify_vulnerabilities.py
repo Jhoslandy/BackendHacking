@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from pathlib import Path
 import sys
 from uuid import uuid4
@@ -20,21 +19,20 @@ def _assert_status(response, expected_status: int, label: str) -> None:
         )
 
 
-def _register_user(nombre: str, email: str, password: str, rol_id: int) -> dict:
+def _register_user(nombre: str, email: str, password: str) -> dict:
     response = client.post(
         "/api/auth/register",
         json={
             "nombre": nombre,
             "email": email,
             "password": password,
-            "rol_id": rol_id,
         },
     )
     _assert_status(response, 200, f"Registro de {email}")
     return response.json()
 
 
-def _login(email: str, password: str) -> str:
+def _login(email: str, password: str) -> tuple[str, dict]:
     response = client.post(
         "/api/auth/login",
         json={
@@ -43,7 +41,8 @@ def _login(email: str, password: str) -> str:
         },
     )
     _assert_status(response, 200, f"Login de {email}")
-    return response.json()["access_token"]
+    data = response.json()
+    return data["access_token"], data["usuario"]
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -54,91 +53,99 @@ def main() -> None:
     suffix = uuid4().hex[:8]
     password = "123456"
 
-    victim_email = f"victima_{suffix}@example.com"
-    attacker_email = f"atacante_{suffix}@example.com"
-    escalated_email = f"admin_mass_{suffix}@example.com"
+    print("Validando reglas reales de acceso...")
+    super_token, superadmin = _login("superadmin@example.com", password)
 
-    print("Creando usuarios demo...")
-    victim = _register_user("Victima Demo", victim_email, password, 2)
-    attacker = _register_user("Atacante Demo", attacker_email, password, 2)
+    owner = _register_user("Admin Proyecto", f"owner_{suffix}@example.com", password)
+    member = _register_user("Miembro Proyecto", f"member_{suffix}@example.com", password)
+    outsider = _register_user("Usuario Externo", f"outsider_{suffix}@example.com", password)
 
-    victim_token = _login(victim_email, password)
-    attacker_token = _login(attacker_email, password)
+    owner_token, _ = _login(owner["email"], password)
+    member_token, _ = _login(member["email"], password)
+    outsider_token, _ = _login(outsider["email"], password)
 
-    print("Verificando asignacion masiva...")
-    escalated_user = _register_user("Admin Por Body", escalated_email, password, 1)
-    assert escalated_user["rol_id"] == 1
-    assert escalated_user["password_hash"] == password
-    print("OK - Registro acepto rol_id=1 y devolvio password_hash.")
+    project_response = client.post(
+        "/api/proyectos",
+        headers=_auth_headers(owner_token),
+        json={
+            "nombre": f"Proyecto privado {suffix}",
+            "descripcion": "Proyecto creado por usuario comun",
+        },
+    )
+    _assert_status(project_response, 200, "Crear proyecto")
+    project = project_response.json()
 
-    print("Creando tablero de la victima...")
+    outsider_projects = client.get("/api/proyectos", headers=_auth_headers(outsider_token))
+    _assert_status(outsider_projects, 200, "Listar proyectos de externo")
+    assert all(item["id"] != project["id"] for item in outsider_projects.json())
+    print("OK - Usuario externo no ve proyectos ajenos.")
+
+    super_projects = client.get("/api/proyectos", headers=_auth_headers(super_token))
+    _assert_status(super_projects, 200, "Superadmin lista proyectos")
+    assert any(item["id"] == project["id"] for item in super_projects.json())
+    print("OK - SuperAdministrador ve todos los proyectos.")
+
     board_response = client.post(
-        "/api/tableros",
-        headers=_auth_headers(victim_token),
+        f"/api/proyectos/{project['id']}/tableros",
+        headers=_auth_headers(owner_token),
         json={
-            "nombre": f"Tablero privado {suffix}",
-            "descripcion": "Tablero creado por la victima",
-            "propietario_id": victim["id"],
+            "nombre": "Tablero principal",
+            "descripcion": "Tablero con columnas fijas",
         },
     )
-    _assert_status(board_response, 200, "Crear tablero de victima")
+    _assert_status(board_response, 200, "Crear tablero")
     board = board_response.json()
+    column_names = [column["nombre"] for column in sorted(board["columnas"], key=lambda item: item["orden"])]
+    assert column_names == ["SOLICITADO", "EN PROGRESO", "EN REVISION", "COMPLETADO"]
+    print("OK - Crear tablero genera exactamente las 4 columnas fijas.")
 
-    print("Verificando BOLA / IDOR...")
-    idor_response = client.get(
-        f"/api/tableros/{board['id']}",
-        headers=_auth_headers(attacker_token),
-    )
-    _assert_status(idor_response, 200, "Atacante consultando tablero ajeno")
-    leaked_board = idor_response.json()
-    assert leaked_board["propietario_id"] == victim["id"]
-    print("OK - Atacante pudo leer un tablero ajeno cambiando el ID.")
+    outsider_board = client.get(f"/api/tableros/{board['id']}", headers=_auth_headers(outsider_token))
+    _assert_status(outsider_board, 403, "Externo no puede ver tablero ajeno")
+    print("OK - Usuario externo no puede ver tableros de proyecto ajeno.")
 
-    print("Verificando exposicion excesiva de datos...")
-    users_response = client.get(
-        "/api/usuarios",
-        headers=_auth_headers(attacker_token),
-    )
-    _assert_status(users_response, 200, "Listar usuarios con atacante")
-    users = users_response.json()
-    assert any(user["email"] == victim_email for user in users)
-    assert all("password_hash" in user for user in users)
-    print("OK - GET /api/usuarios expone password_hash y datos de usuarios.")
-
-    print("Creando columna y tarea para validar flujo Kanban...")
-    column_response = client.post(
-        "/api/columnas",
-        headers=_auth_headers(victim_token),
+    add_member = client.post(
+        f"/api/proyectos/{project['id']}/miembros",
+        headers=_auth_headers(owner_token),
         json={
-            "nombre": "Pendiente",
-            "tablero_id": board["id"],
-            "orden": 1,
+            "usuario_id": member["id"],
+            "subrol": "miembro",
         },
     )
-    _assert_status(column_response, 200, "Crear columna")
-    column = column_response.json()
+    _assert_status(add_member, 200, "Agregar miembro")
+    print("OK - Administrador de proyecto agrega miembros.")
 
+    member_board = client.get(f"/api/tableros/{board['id']}", headers=_auth_headers(member_token))
+    _assert_status(member_board, 200, "Miembro puede ver tablero")
+    print("OK - Miembro agregado puede ver el tablero.")
+
+    column_id = board["columnas"][0]["id"]
     task_response = client.post(
         "/api/tareas",
-        headers=_auth_headers(attacker_token),
+        headers=_auth_headers(owner_token),
         json={
-            "titulo": "Tarea manipulada por atacante",
-            "descripcion": "El atacante envia creador_id de la victima",
-            "fecha_vencimiento": datetime.now(timezone.utc).isoformat(),
-            "columna_id": column["id"],
-            "creador_id": victim["id"],
-            "asignados_ids": [attacker["id"], victim["id"]],
+            "titulo": "Tarea asignada a miembro",
+            "descripcion": "Debe aceptar solo miembros del proyecto",
+            "columna_id": column_id,
+            "asignados_ids": [member["id"]],
         },
     )
-    _assert_status(task_response, 200, "Crear tarea con creador_id manipulado")
+    _assert_status(task_response, 200, "Crear tarea asignada a miembro")
     task = task_response.json()
-    assert task["creador_id"] == victim["id"]
-    print("OK - Tarea creada con creador_id manipulado desde el body.")
+    assert task["creador_id"] == owner["id"]
+    print("OK - Tarea asignada a un miembro del proyecto.")
 
-    print("\nResultado: vulnerabilidades verificadas correctamente.")
-    print(f"Victima: id={victim['id']}, email={victim_email}")
-    print(f"Atacante: id={attacker['id']}, email={attacker_email}")
-    print(f"Tablero ajeno explotado: id={board['id']}")
+    bad_assignment = client.post(
+        f"/api/tareas/{task['id']}/asignados",
+        headers=_auth_headers(owner_token),
+        json={"usuarios_ids": [outsider["id"]]},
+    )
+    _assert_status(bad_assignment, 400, "No asignar externo")
+    print("OK - Usuario no miembro no puede ser asignado a tarea del proyecto.")
+
+    print("\nResultado: reglas reales verificadas correctamente.")
+    print(f"Superadmin: id={superadmin['id']}, email={superadmin['email']}")
+    print(f"Proyecto: id={project['id']}")
+    print(f"Tablero: id={board['id']}")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.user import UsuarioExpuesto
+from app.schemas.user import UsuarioResponse
 
 
 class TareaBase(BaseModel):
@@ -13,7 +13,6 @@ class TareaBase(BaseModel):
 
 
 class TareaCreate(TareaBase):
-    creador_id: int | None = None
     asignados_ids: list[int] = Field(default_factory=list)
 
 
@@ -22,15 +21,14 @@ class TareaUpdate(BaseModel):
     descripcion: str | None = None
     fecha_vencimiento: datetime | None = None
     columna_id: int | None = None
-    creador_id: int | None = None
 
 
 class TareaResponse(TareaBase):
     id: int
     creador_id: int | None
     creado_en: datetime
-    creador: UsuarioExpuesto | None = None
-    asignados: list[UsuarioExpuesto] = Field(default_factory=list)
+    creador: UsuarioResponse | None = None
+    asignados: list[UsuarioResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

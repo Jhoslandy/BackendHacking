@@ -11,10 +11,10 @@ class Tablero(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
     descripcion = Column(Text)
-    propietario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    proyecto_id = Column(Integer, ForeignKey("proyectos.id", ondelete="CASCADE"), nullable=False)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
-    propietario = relationship("Usuario", back_populates="tableros")
+    proyecto = relationship("Proyecto", back_populates="tableros")
     columnas = relationship("Columna", back_populates="tablero", cascade="all, delete-orphan")
 
 

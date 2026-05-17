@@ -1,64 +1,51 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.permissions import es_superadmin
 from app.core.security import obtener_usuario_actual_debil
 from app.db.deps import get_db
 from app.models.user import Usuario
-from app.schemas.user import UsuarioCreate, UsuarioExpuesto, UsuarioUpdate
+from app.schemas.user import UsuarioResponse, UsuarioUpdate
 
 router = APIRouter()
 
 
-@router.post("/usuarios", response_model=UsuarioExpuesto)
-def crear_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)) -> Usuario:
-    db_usuario = db.query(Usuario).filter(Usuario.email == usuario.email).first()
-    if db_usuario:
-        raise HTTPException(status_code=400, detail="El email ya esta registrado")
-
-    nuevo_usuario = Usuario(
-        nombre=usuario.nombre,
-        email=usuario.email,
-        password_hash=usuario.password,
-        rol_id=usuario.rol_id,
-    )
-
-    db.add(nuevo_usuario)
-    db.commit()
-    db.refresh(nuevo_usuario)
-    return nuevo_usuario
-
-
-@router.get("/usuarios", response_model=list[UsuarioExpuesto])
+@router.get("/usuarios", response_model=list[UsuarioResponse])
 def obtener_usuarios(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> list[Usuario]:
-    # Vulnerabilidad intencional: expone todos los usuarios y sus password_hash.
-    _ = usuario
-    return db.query(Usuario).all()
+    if es_superadmin(usuario):
+        return db.query(Usuario).all()
+
+    return db.query(Usuario).filter(Usuario.id != usuario.id).all()
 
 
-@router.get("/usuarios/{usuario_id}", response_model=UsuarioExpuesto)
+@router.get("/usuarios/{usuario_id}", response_model=UsuarioResponse)
 def obtener_usuario(
     usuario_id: int,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> Usuario:
-    _ = usuario
+    if not es_superadmin(usuario) and usuario.id != usuario_id:
+        raise HTTPException(status_code=403, detail="No puedes consultar este usuario")
+
     db_usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not db_usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return db_usuario
 
 
-@router.put("/usuarios/{usuario_id}", response_model=UsuarioExpuesto)
+@router.put("/usuarios/{usuario_id}", response_model=UsuarioResponse)
 def actualizar_usuario(
     usuario_id: int,
     datos_actualizacion: UsuarioUpdate,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> Usuario:
-    _ = usuario
+    if not es_superadmin(usuario) and usuario.id != usuario_id:
+        raise HTTPException(status_code=403, detail="No puedes actualizar este usuario")
+
     db_usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not db_usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -67,7 +54,6 @@ def actualizar_usuario(
     if "password" in datos_dict:
         datos_dict["password_hash"] = datos_dict.pop("password")
 
-    # Vulnerabilidad intencional: mass assignment sobre campos sensibles.
     for key, value in datos_dict.items():
         setattr(db_usuario, key, value)
 

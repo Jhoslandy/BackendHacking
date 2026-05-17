@@ -1,21 +1,22 @@
 from app.schemas.auth import LoginRequest, TokenResponse
-from app.schemas.board import (
-    ColumnaCreate,
-    ColumnaResponse,
-    ColumnaUpdate,
-    TableroCreate,
-    TableroResponse,
-    TableroUpdate,
+from app.schemas.board import ColumnaResponse, TableroCreate, TableroResponse, TableroUpdate
+from app.schemas.project import (
+    MiembroProyectoCreate,
+    MiembroProyectoResponse,
+    ProyectoCreate,
+    ProyectoResponse,
 )
 from app.schemas.task import AsignarUsuariosRequest, TareaCreate, TareaResponse, TareaUpdate
-from app.schemas.user import UsuarioCreate, UsuarioExpuesto, UsuarioResponse, UsuarioUpdate
+from app.schemas.user import UsuarioCreate, UsuarioResponse, UsuarioUpdate
 
 __all__ = [
-    "ColumnaCreate",
-    "ColumnaResponse",
-    "ColumnaUpdate",
     "AsignarUsuariosRequest",
+    "ColumnaResponse",
     "LoginRequest",
+    "MiembroProyectoCreate",
+    "MiembroProyectoResponse",
+    "ProyectoCreate",
+    "ProyectoResponse",
     "TableroCreate",
     "TableroResponse",
     "TableroUpdate",
@@ -24,7 +25,6 @@ __all__ = [
     "TareaUpdate",
     "TokenResponse",
     "UsuarioCreate",
-    "UsuarioExpuesto",
     "UsuarioResponse",
     "UsuarioUpdate",
 ]
