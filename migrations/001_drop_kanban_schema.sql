@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS solicitudes_tarea_movimiento;
 DROP TABLE IF EXISTS usuario_tarea;
 DROP TABLE IF EXISTS tareas;
 DROP TABLE IF EXISTS columnas;

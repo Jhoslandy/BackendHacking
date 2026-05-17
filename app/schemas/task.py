@@ -26,6 +26,7 @@ class TareaUpdate(BaseModel):
 class TareaResponse(TareaBase):
     id: int
     creador_id: int | None
+    proyecto_id: int | None = None
     creado_en: datetime
     creador: UsuarioResponse | None = None
     asignados: list[UsuarioResponse] = Field(default_factory=list)
@@ -35,3 +36,25 @@ class TareaResponse(TareaBase):
 
 class AsignarUsuariosRequest(BaseModel):
     usuarios_ids: list[int]
+
+
+class SolicitudMovimientoCreate(BaseModel):
+    mensaje: str | None = None
+
+
+class SolicitudMovimientoResponse(BaseModel):
+    id: int
+    proyecto_id: int | None = None
+    tarea_id: int
+    tarea_titulo: str
+    solicitante_id: int
+    solicitante_nombre: str
+    columna_origen_id: int
+    columna_origen_nombre: str
+    columna_destino_id: int
+    columna_destino_nombre: str
+    estado: str
+    puede_resolver: bool = False
+    mensaje: str | None = None
+    creado_en: datetime
+    resuelto_en: datetime | None = None

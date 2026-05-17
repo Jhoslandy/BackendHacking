@@ -30,3 +30,4 @@ class Usuario(Base):
     proyectos = relationship("Proyecto", secondary=proyecto_miembros, back_populates="miembros")
     tareas_creadas = relationship("Tarea", back_populates="creador")
     tareas_asignadas = relationship("Tarea", secondary=usuario_tarea, back_populates="asignados")
+    solicitudes_movimiento = relationship("SolicitudTareaMovimiento", back_populates="solicitante")

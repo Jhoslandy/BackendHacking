@@ -105,3 +105,33 @@ CREATE TABLE usuario_tarea (
         REFERENCES tareas(id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE solicitudes_tarea_movimiento (
+    id SERIAL PRIMARY KEY,
+    tarea_id INT NOT NULL,
+    solicitante_id INT NOT NULL,
+    columna_origen_id INT NOT NULL,
+    columna_destino_id INT NOT NULL,
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    mensaje TEXT,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resuelto_en TIMESTAMP NULL,
+    CONSTRAINT chk_solicitudes_tarea_movimiento_estado
+        CHECK (estado IN ('pendiente', 'aprobada', 'rechazada')),
+    CONSTRAINT fk_solicitud_tarea
+        FOREIGN KEY (tarea_id)
+        REFERENCES tareas(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_solicitud_solicitante
+        FOREIGN KEY (solicitante_id)
+        REFERENCES usuarios(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_solicitud_columna_origen
+        FOREIGN KEY (columna_origen_id)
+        REFERENCES columnas(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_solicitud_columna_destino
+        FOREIGN KEY (columna_destino_id)
+        REFERENCES columnas(id)
+        ON DELETE CASCADE
+);
