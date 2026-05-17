@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.constants import ROL_USUARIO_COMUN
+from app.core.email import enviar_correo_bienvenida, validar_dominio_email_con_mx
 from app.core.security import crear_token_debil, obtener_usuario_actual_debil
 from app.db.deps import get_db
 from app.models.user import Rol, Usuario
@@ -19,7 +20,13 @@ def obtener_rol_usuario_comun(db: Session) -> Rol:
 
 
 @router.post("/register", response_model=UsuarioResponse)
-def registrar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)) -> Usuario:
+def registrar_usuario(
+    usuario: UsuarioCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> Usuario:
+    validar_dominio_email_con_mx(usuario.email)
+
     usuario_existente = db.query(Usuario).filter(Usuario.email == usuario.email).first()
     if usuario_existente:
         raise HTTPException(status_code=400, detail="El email ya esta registrado")
@@ -34,6 +41,7 @@ def registrar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)) -> 
     db.add(nuevo_usuario)
     db.commit()
     db.refresh(nuevo_usuario)
+    background_tasks.add_task(enviar_correo_bienvenida, nuevo_usuario.email, nuevo_usuario.nombre)
     return nuevo_usuario
 
 

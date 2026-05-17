@@ -42,13 +42,37 @@ DB_PASSWORD=123456
 
 JWT_SECRET=clave_insegura_demo
 JWT_EXPIRES_IN=7d
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=465
+EMAIL_USER=tu_correo@gmail.com
+EMAIL_PASSWORD=app_password_de_gmail
+EMAIL_FROM=tu_correo@gmail.com
 ```
+
+`EMAIL_PASSWORD` debe configurarse como variable de entorno en Render. No subir contrasenas reales al repositorio.
 
 Probar conexion:
 
 ```powershell
 python -m app.db.check_connection
 ```
+
+## Correo y Render
+
+El registro valida que el dominio del correo tenga registros MX usando `dnspython`. Esto rechaza dominios falsos, pero acepta correos temporales si el proveedor tiene MX reales.
+
+Al crear usuarios se agenda un correo de bienvenida con `BackgroundTasks` y SMTP SSL. Para Gmail usa una App Password y estas variables:
+
+```env
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=465
+EMAIL_USER=tu_correo@gmail.com
+EMAIL_PASSWORD=app_password_de_gmail
+EMAIL_FROM=tu_correo@gmail.com
+```
+
+En Render configura `EMAIL_PASSWORD` en `Environment Variables`. Render permite conexiones salientes por el puerto SMTP SSL `465`.
 
 ## Migraciones
 

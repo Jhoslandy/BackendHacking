@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str | None = None
     JWT_SECRET: str
     JWT_EXPIRES_IN: str
+    EMAIL_HOST: str = "smtp.gmail.com"
+    EMAIL_PORT: int = 465
+    EMAIL_USER: str | None = None
+    EMAIL_PASSWORD: str | None = None
+    EMAIL_FROM: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.constants import ROL_USUARIO_COMUN
+from app.core.email import enviar_correo_bienvenida, validar_dominio_email_con_mx
 from app.core.permissions import es_superadmin
 from app.core.security import obtener_usuario_actual_debil
 from app.db.deps import get_db
-from app.core.constants import ROL_USUARIO_COMUN
 from app.models.user import Rol, Usuario
 from app.schemas.user import UsuarioCreate, UsuarioResponse, UsuarioUpdate
 
@@ -28,11 +29,13 @@ def rol_por_defecto(db: Session) -> Rol:
 @router.post("/usuarios", response_model=UsuarioResponse)
 def crear_usuario(
     datos_usuario: UsuarioCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> Usuario:
     if not es_superadmin(usuario):
         raise HTTPException(status_code=403, detail="Solo el SuperAdministrador puede crear usuarios")
+    validar_dominio_email_con_mx(datos_usuario.email)
 
     usuario_existente = db.query(Usuario).filter(Usuario.email == datos_usuario.email).first()
     if usuario_existente:
@@ -47,6 +50,7 @@ def crear_usuario(
     db.add(nuevo_usuario)
     db.commit()
     db.refresh(nuevo_usuario)
+    background_tasks.add_task(enviar_correo_bienvenida, nuevo_usuario.email, nuevo_usuario.nombre)
     return nuevo_usuario
 
 
@@ -87,6 +91,8 @@ def actualizar_usuario(
     db_usuario = obtener_usuario_o_404(db, usuario_id)
 
     datos_dict = datos_actualizacion.model_dump(exclude_unset=True)
+    if "email" in datos_dict:
+        validar_dominio_email_con_mx(datos_dict["email"])
     if "password" in datos_dict:
         datos_dict["password_hash"] = datos_dict.pop("password")
 
