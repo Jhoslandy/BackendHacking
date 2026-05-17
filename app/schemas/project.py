@@ -9,6 +9,8 @@ class ProyectoCreate(BaseModel):
     nombre: str
     descripcion: str | None = None
 
+    model_config = ConfigDict(extra="allow")
+
 
 class ProyectoResponse(BaseModel):
     id: int

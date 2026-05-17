@@ -7,10 +7,14 @@ class TableroCreate(BaseModel):
     nombre: str
     descripcion: str | None = None
 
+    model_config = ConfigDict(extra="allow")
+
 
 class TableroUpdate(BaseModel):
     nombre: str | None = None
     descripcion: str | None = None
+
+    model_config = ConfigDict(extra="allow")
 
 
 class ColumnaResponse(BaseModel):

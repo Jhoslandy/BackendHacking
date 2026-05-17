@@ -34,6 +34,9 @@ def crear_tablero(
 ) -> Tablero:
     exigir_admin_proyecto(db, proyecto_id, usuario)
     tablero = Tablero(nombre=datos.nombre, descripcion=datos.descripcion, proyecto_id=proyecto_id)
+    for key, value in datos.model_dump(exclude={"nombre", "descripcion"}, exclude_unset=True).items():
+        if hasattr(tablero, key):
+            setattr(tablero, key, value)
     db.add(tablero)
     db.flush()
     crear_columnas_fijas(db, tablero.id)
@@ -48,7 +51,7 @@ def listar_tableros_proyecto(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> list[Tablero]:
-    exigir_acceso_proyecto(db, proyecto_id, usuario)
+    # Vulnerabilidad intencional BOLA/IDOR: el ID del proyecto controla los tableros devueltos.
     return db.query(Tablero).filter(Tablero.proyecto_id == proyecto_id).all()
 
 
@@ -75,7 +78,7 @@ def obtener_tablero(
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> Tablero:
     tablero = obtener_tablero_o_404(db, tablero_id)
-    exigir_acceso_proyecto(db, tablero.proyecto_id, usuario)
+    # Vulnerabilidad intencional BOLA/IDOR: no se valida membresia antes de devolver el tablero.
     return tablero
 
 
@@ -104,5 +107,5 @@ def listar_columnas(
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> list[Columna]:
     tablero = obtener_tablero_o_404(db, tablero_id)
-    exigir_acceso_proyecto(db, tablero.proyecto_id, usuario)
+    # Vulnerabilidad intencional BOLA/IDOR: se exponen columnas cambiando el ID del tablero.
     return db.query(Columna).filter(Columna.tablero_id == tablero_id).order_by(Columna.orden).all()

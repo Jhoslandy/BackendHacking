@@ -95,9 +95,14 @@ def obtener_solicitud_o_404(db: Session, solicitud_id: int) -> SolicitudTareaMov
 
 
 def serializar_solicitud(solicitud: SolicitudTareaMovimiento, puede_resolver: bool = False) -> dict:
+    tablero = solicitud.tarea.columna.tablero
+    proyecto = tablero.proyecto
     return {
         "id": solicitud.id,
-        "proyecto_id": proyecto_de_tarea(solicitud.tarea),
+        "proyecto_id": proyecto.id,
+        "proyecto_nombre": proyecto.nombre,
+        "tablero_id": tablero.id,
+        "tablero_nombre": tablero.nombre,
         "tarea_id": solicitud.tarea_id,
         "tarea_titulo": solicitud.tarea.titulo,
         "solicitante_id": solicitud.solicitante_id,
@@ -142,6 +147,12 @@ def crear_tarea(
         columna_id=tarea.columna_id,
         creador_id=usuario.id,
     )
+    for key, value in tarea.model_dump(
+        exclude={"titulo", "descripcion", "fecha_vencimiento", "columna_id", "asignados_ids"},
+        exclude_unset=True,
+    ).items():
+        if hasattr(nueva_tarea, key):
+            setattr(nueva_tarea, key, value)
     asignar_usuarios_a_tarea(db, nueva_tarea, proyecto_id, tarea.asignados_ids)
 
     db.add(nueva_tarea)
@@ -169,7 +180,7 @@ def obtener_tarea(
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> Tarea:
     tarea = obtener_tarea_o_404(db, tarea_id)
-    exigir_acceso_proyecto(db, proyecto_de_tarea(tarea), usuario)
+    # Vulnerabilidad intencional BOLA/IDOR: el ID permite consultar tareas de otros proyectos.
     return tarea
 
 
@@ -182,7 +193,7 @@ def actualizar_tarea(
 ) -> Tarea:
     tarea = obtener_tarea_o_404(db, tarea_id)
     proyecto_id = proyecto_de_tarea(tarea)
-    exigir_admin_proyecto(db, proyecto_id, usuario)
+    # Vulnerabilidad intencional BOLA/IDOR: no se exige administrar el proyecto para actualizar por ID.
 
     datos_dict = datos.model_dump(exclude_unset=True)
     if "columna_id" in datos_dict:

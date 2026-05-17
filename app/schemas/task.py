@@ -15,12 +15,16 @@ class TareaBase(BaseModel):
 class TareaCreate(TareaBase):
     asignados_ids: list[int] = Field(default_factory=list)
 
+    model_config = ConfigDict(extra="allow")
+
 
 class TareaUpdate(BaseModel):
     titulo: str | None = None
     descripcion: str | None = None
     fecha_vencimiento: datetime | None = None
     columna_id: int | None = None
+
+    model_config = ConfigDict(extra="allow")
 
 
 class TareaResponse(TareaBase):
@@ -45,6 +49,9 @@ class SolicitudMovimientoCreate(BaseModel):
 class SolicitudMovimientoResponse(BaseModel):
     id: int
     proyecto_id: int | None = None
+    proyecto_nombre: str | None = None
+    tablero_id: int | None = None
+    tablero_nombre: str | None = None
     tarea_id: int
     tarea_titulo: str
     solicitante_id: int

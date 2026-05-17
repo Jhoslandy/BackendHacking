@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import insert
+from sqlalchemy import delete, insert
 from sqlalchemy.orm import Session
 
 from app.core.constants import ROL_USUARIO_COMUN, SUBROL_ADMIN_PROYECTO
@@ -7,6 +7,7 @@ from app.core.permissions import (
     es_superadmin,
     exigir_acceso_proyecto,
     exigir_admin_proyecto,
+    obtener_proyecto_o_404,
 )
 from app.core.security import obtener_usuario_actual_debil
 from app.db.deps import get_db
@@ -34,6 +35,9 @@ def crear_proyecto(
         descripcion=datos.descripcion,
         creador_id=usuario.id,
     )
+    for key, value in datos.model_dump(exclude={"nombre", "descripcion"}, exclude_unset=True).items():
+        if hasattr(proyecto, key):
+            setattr(proyecto, key, value)
     db.add(proyecto)
     db.flush()
     db.execute(
@@ -70,7 +74,8 @@ def obtener_proyecto(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> Proyecto:
-    return exigir_acceso_proyecto(db, proyecto_id, usuario)
+    # Vulnerabilidad intencional BOLA/IDOR: basta cambiar el ID para consultar otro proyecto.
+    return obtener_proyecto_o_404(db, proyecto_id)
 
 
 @router.get("/{proyecto_id}/miembros", response_model=list[MiembroProyectoResponse])
@@ -79,7 +84,8 @@ def listar_miembros(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(obtener_usuario_actual_debil),
 ) -> list[dict]:
-    exigir_acceso_proyecto(db, proyecto_id, usuario)
+    # Vulnerabilidad intencional BOLA/IDOR: expone miembros de cualquier proyecto por ID.
+    obtener_proyecto_o_404(db, proyecto_id)
     rows = (
         db.query(Usuario, proyecto_miembros.c.subrol)
         .join(proyecto_miembros, proyecto_miembros.c.usuario_id == Usuario.id)
@@ -126,3 +132,24 @@ def agregar_miembro(
     )
     db.commit()
     return {"usuario": nuevo_miembro, "subrol": datos.subrol}
+
+
+@router.delete("/{proyecto_id}/miembros/{usuario_id}")
+def quitar_miembro(
+    proyecto_id: int,
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(obtener_usuario_actual_debil),
+) -> dict[str, str]:
+    exigir_admin_proyecto(db, proyecto_id, usuario)
+    result = db.execute(
+        delete(proyecto_miembros).where(
+            proyecto_miembros.c.proyecto_id == proyecto_id,
+            proyecto_miembros.c.usuario_id == usuario_id,
+        )
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Miembro no encontrado en el proyecto")
+
+    db.commit()
+    return {"status": "success", "mensaje": f"Usuario {usuario_id} removido del proyecto {proyecto_id}"}
