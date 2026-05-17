@@ -1,18 +1,42 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
 .Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
 
-# Entorno virtual
+# Entornos virtuales
+.venv/
 venv/
 env/
-.env
-.venv
+ENV/
 
-# Base de datos
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Base de datos local
 *.db
 *.sqlite
+*.sqlite3
+
+# Logs y runtime
+*.log
+logs/
+tmp/
+temp/
+
+# Alembic / migraciones
+# No ignorar alembic/, migrations/ ni seeders/: forman parte del proyecto.
 
 # IDE
 .vscode/
@@ -20,3 +44,5 @@ env/
 
 # Sistema
 .DS_Store
+Thumbs.db
+desktop.ini
