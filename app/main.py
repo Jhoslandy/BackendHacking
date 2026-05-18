@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware # IMPORTACIÓN NUEVA
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -12,19 +12,23 @@ app = FastAPI(
     version=settings.APP_VERSION,
 )
 
-# --- INICIO CONFIGURACIÓN CORS ---
-# Esto permite que tu frontend en Render o en localhost se conecte sin bloqueos
+# --- CORRECCIÓN DE CORS ---
+# Definimos exactamente quién puede conectarse
+origins = [
+    "http://localhost:5173",  # Tu frontend local (Vite)
+    "https://kanban-kali-entes.onrender.com",  # Tu futuro frontend en Render
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En un entorno real se pone la URL exacta del frontend, aquí ponemos "*" para evitar problemas en la demo.
+    allow_origins=origins, # Usamos la lista en lugar de "*"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# --- FIN CONFIGURACIÓN CORS ---
+# --- FIN CORRECCIÓN ---
 
 app.include_router(api_router)
-
 
 @app.get("/", tags=["Health"])
 def root() -> dict[str, str]:
